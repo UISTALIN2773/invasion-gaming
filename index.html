@@ -91,6 +91,19 @@ details p{color:var(--mut);margin:10px 0 0}
 footer{padding:30px 0 50px;color:var(--mut);font-size:14px;border-top:1px solid var(--ln)}
 .wa{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:35;box-shadow:0 6px 24px rgba(57,255,20,.4)}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+#tm{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-width:460px;margin-left:auto;z-index:70;display:none;background:#030a05;border:1px solid #39ff14;border-radius:14px;box-shadow:0 0 30px rgba(57,255,20,.35);font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#39ff14}
+#tm.on{display:block}
+.tmh{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid rgba(57,255,20,.3)}
+.tmh i{width:10px;height:10px;border-radius:50%;background:#39ff14;opacity:.7}
+.tmh span{flex:1;font-size:12px;opacity:.85;margin-left:6px}
+.tmh button{background:none;border:0;color:#39ff14;font-size:22px;line-height:1;cursor:pointer}
+#tmlog{height:min(44vh,300px);overflow:auto;padding:12px;white-space:pre-wrap;word-break:break-word}
+#tmlog .u{color:#d1fae5}#tmlog .e{color:#ff6b8b}#tmlog .c{color:#00f0ff}
+#tmch{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px}
+.chip{border:1px solid #39ff14;border-radius:8px;padding:6px 10px;background:rgba(57,255,20,.08);color:#39ff14;font:inherit;cursor:pointer}
+.chip:hover{background:#39ff14;color:#031007}
+#tmf{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid rgba(57,255,20,.3)}
+#tmin{flex:1;min-width:0;background:none;border:0;color:#d1fae5;font:inherit;font-size:16px;outline:0}
 </style>
 </head>
 <body>
@@ -210,6 +223,7 @@ footer{padding:30px 0 50px;color:var(--mut);font-size:14px;border-top:1px solid 
 </main>
 <footer><div class="w">© 2026 Invasion Gaming · Av. Carlos Izaguirre 728, Los Olivos</div></footer>
 <a class="btn b2 wa" href="https://wa.me/51940677546?text=Hola%20Invasion%20Gaming,%20quisiera%20reservar%20una%20estaci%C3%B3n." target="_blank" rel="noopener noreferrer">WhatsApp</a>
+<div id="tm" role="dialog" aria-label="Reservar por WhatsApp"><div class="tmh"><i></i><i></i><i></i><span>invasion@gaming:~$ reservar</span><button id="tmx" aria-label="Cerrar">×</button></div><div id="tmlog" aria-live="polite"></div><div id="tmch"></div><div id="tmf"><span>$</span><input id="tmin" type="text" maxlength="60" autocomplete="off" aria-label="Tu respuesta"><button class="chip" id="tmok">OK</button></div></div>
 <div id="lb" role="dialog" aria-label="Imagen ampliada"><button id="lx" style="top:16px;right:16px" aria-label="Cerrar">×</button><button id="lp" style="left:12px" aria-label="Anterior">‹</button><img id="li" alt=""><button id="ln" style="right:12px" aria-label="Siguiente">›</button></div>
 
 <script>
@@ -268,6 +282,44 @@ L.forEach(function(im,i){im.onclick=function(){show(i)}});
 $("#lx").onclick=function(){lb.classList.remove("on")};$("#lp").onclick=function(){show(ci-1)};$("#ln").onclick=function(){show(ci+1)};
 lb.onclick=function(e){if(e.target==lb)lb.classList.remove("on")};
 addEventListener("keydown",function(e){if(!lb.classList.contains("on"))return;if(e.key=="Escape")lb.classList.remove("on");if(e.key=="ArrowLeft")show(ci-1);if(e.key=="ArrowRight")show(ci+1)});
+/* Terminal de reservas */
+(function(){var tm=$("#tm"),lg=$("#tmlog"),ch=$("#tmch"),inp=$("#tmin"),R={},si=0,busy=0,rr=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function nz(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim()}
+function say(t,c,cb){var d=document.createElement("div");if(c)d.className=c;lg.appendChild(d);
+if(rr||t.length>140){d.textContent=t;lg.scrollTop=1e5;if(cb)cb();return}
+var i=0;busy=1;(function s(){d.textContent=t.slice(0,++i);lg.scrollTop=1e5;if(i<t.length)setTimeout(s,14);else{busy=0;if(cb)cb()}})()}
+function txt(s){s=s.slice(0,60);return s.length?s:undefined}
+function num(a,b){return function(s){var m=parseInt(s,10);return m>=a&&m<=b?m:undefined}}
+var S=[
+{k:"nombre",q:"¿A nombre de quién reservamos?",ch:function(){return[]},v:txt},
+{k:"z",q:"¿Qué zona quieres?",ch:function(){return Z.map(function(z){return z.n})},v:function(s){var n=nz(s);for(var i=0;i<Z.length;i++)if(nz(Z[i].n)==n)return i}},
+{k:"n",q:"¿Cuántas PCs necesitas?",ch:function(){return["1","2","3","4","5","6"]},v:num(1,16)},
+{k:"p",q:"¿Qué plan prefieres?",ch:function(){return["Por hora","Pack 4h","Pack 6h","Amanecida"]},v:function(s){var n=nz(s);if(/amanec/.test(n))return 3;if(/6/.test(n))return 2;if(/4/.test(n))return 1;if(/hora/.test(n))return 0}},
+{k:"h",q:"¿Cuántas horas vas a jugar?",ch:function(){return["1","2","3","4","5"]},v:num(1,12)},
+{k:"d",q:"¿Para qué día y hora?",ch:function(){return["Hoy","Mañana"]},v:txt},
+{k:"pr",q:"¿Quieres aplicar alguna promoción?",ch:function(){return R.p==3?["Ninguna","Bebida o snack gratis"]:["Ninguna"]},v:txt},
+{k:"no",q:"¿Alguna nota extra?",ch:function(){return["Sin notas"]},v:txt}];
+function rc(){ch.innerHTML="";if(!S[si])return;S[si].ch().forEach(function(t){var b=document.createElement("button");b.className="chip";b.textContent=t;b.onclick=function(){ans(t)};ch.appendChild(b)})}
+function ask(){while(S[si]&&S[si].k=="h"&&R.p!=0)si++;if(si>=S.length)return fin();say("> "+S[si].q,"",function(){rc();inp.focus()})}
+function ans(t){t=t.trim();if(busy||!t||!S[si])return;var d=document.createElement("div");d.className="u";d.textContent="$ "+t;lg.appendChild(d);inp.value="";
+var v=S[si].v(t);if(v===undefined){say("✗ No entendí. Elige una opción o escríbela de nuevo.","e");return}
+R[S[si].k]=v;si++;ch.innerHTML="";ask()}
+function fin(){var z=Z[R.z],P=["Por hora","Pack 4 horas","Pack 6 horas","Amanecida"],t=null;
+if(R.p==0){if(z.r)t=z.r*R.h*R.n}else t=z.p[R.p-1]*R.n;
+var o={nombre:R.nombre,zona:z.n,pcs:R.n,plan:P[R.p]+(R.p==0?" ("+R.h+" h)":""),dia:R.d,promo:R.pr,notas:R.no,total:t==null?"por confirmar":f(t)};
+var m="Hola Invasion Gaming, quiero reservar:\n• Nombre: "+o.nombre+"\n• Zona: "+o.zona+"\n• PCs: "+o.pcs+"\n• Plan: "+o.plan+"\n• Día y hora: "+o.dia+"\n• Promo: "+o.promo+"\n• Notas: "+o.notas+"\n• Total estimado: "+o.total;
+say("reserva = "+JSON.stringify(o,null,1),"c");
+say("✓ Listo. Toca enviar y se abre WhatsApp con tu mensaje armado.","",function(){ch.innerHTML="";
+var a=document.createElement("a");a.className="chip";a.textContent="Enviar por WhatsApp";a.href="https://wa.me/51940677546?text="+encodeURIComponent(m);a.target="_blank";a.rel="noopener noreferrer";ch.appendChild(a);
+var b=document.createElement("button");b.className="chip";b.textContent="Empezar de nuevo";b.onclick=function(){start()};ch.appendChild(b)})}
+function start(){R={};si=0;busy=0;lg.innerHTML="";ch.innerHTML="";say("invasion-gaming reservas v1.0","c",function(){say("Te hago unas preguntas y armo tu mensaje de WhatsApp.","",ask)})}
+function open(){if(tm.classList.contains("on")){inp.focus();return}tm.classList.add("on");start()}
+$("#tmx").onclick=function(){tm.classList.remove("on")};
+$("#tmok").onclick=function(){ans(inp.value)};
+inp.onkeydown=function(e){if(e.key=="Enter")ans(inp.value)};
+addEventListener("keydown",function(e){if(e.key=="Escape")tm.classList.remove("on")});
+document.querySelectorAll('a[href^="https://wa.me/"]').forEach(function(a){if(a.id=="go")return;a.addEventListener("click",function(e){e.preventDefault();open()})});
+})();
 /* Fondo estelar pixel art */
 (function(){var c=$("#sky"),x=c.getContext("2d"),PX=3,W,H,S=[],neb,sh=null,uf=null,mx=0,my=0,rm=matchMedia("(prefers-reduced-motion:reduce)").matches;
 var COL=["#ffffff","#cfe8ff","#00f0ff","#c084fc","#fff3b0"];
